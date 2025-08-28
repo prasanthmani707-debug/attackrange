@@ -7,6 +7,9 @@ export default function Home() {
   const [status, setStatus] = useState("");
   const [openMain, setOpenMain] = useState(false);
   const [openSub, setOpenSub] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [submenuPosition, setSubmenuPosition] = useState<"right" | "left">("right");
+  const [subMenuDirection, setSubMenuDirection] = useState<"up" | "down">("down");
 
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -18,15 +21,27 @@ export default function Home() {
       "Password Cracking (T1110.001)",
       "Credential Stuffing (T1110.002)",
     ],
-    "Application Attack": [
-      "SQL Injection (T1190)",
-      "Cross-site Scripting (T1059.007)",
-      "Buffer Overflow (T1203)",
+    "Persistence via Scheduled Tasks": ["Cron (T1053.003)", "At (T1053.001)"],
+    "Phishing Attack": [
+      "Spearphishing Attachment (T1566.001)",
+      "Spearphishing Link (T1566.002)",
+      "Spearphishing via Service (T1566.003)",
     ],
-    "Command and Control Attack": [
-      "Beaconing (T1071.001)",
-      "Data Exfiltration (T1041)",
-      "Remote Access Trojan (T1219)",
+    "Command Execution": [
+      "Windows Command Shell (T1059.003)",
+      "PowerShell (T1059.001)",
+      "Bash (T1059.004)",
+      "Python (T1059.006)",
+      "Perl (T1059.005)",
+      "JavaScript (T1059.007)",
+      "AppleScript (T1059.002)",
+      "Visual Basic (T1059.008)",
+      "Network Device CLI (T1059.009)",
+    ],
+    "Valid Accounts": [
+      "Local Accounts (T1078.003)",
+      "Domain Accounts (T1078.002)",
+      "Cloud Accounts (T1078.004)",
     ],
   };
 
@@ -52,6 +67,9 @@ export default function Home() {
       alert("Please select both server and attack.");
       return;
     }
+    setLoading(true);
+    setStatus("");
+
     const attackIdMatch = selectedAttack.match(/\((T\d+\.\d+|\w+)\)/);
     const attackId = attackIdMatch ? attackIdMatch[1] : selectedAttack;
 
@@ -70,6 +88,8 @@ export default function Home() {
     } catch (error) {
       console.error("Network Error:", error);
       setStatus("fail - network error");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -112,12 +132,38 @@ export default function Home() {
                   <div
                     key={category}
                     style={styles.dropdownItem}
-                    onMouseEnter={() => setOpenSub(category)}
+                    onMouseEnter={(e) => {
+                      const rect = e.currentTarget.getBoundingClientRect();
+
+                      // Horizontal positioning
+                      if (window.innerWidth - rect.right < 260) {
+                        setSubmenuPosition("left");
+                      } else {
+                        setSubmenuPosition("right");
+                      }
+
+                      // Vertical positioning
+                      const availableSpaceBelow = window.innerHeight - rect.bottom;
+                      const submenuHeight = 250;
+                      const openUpwards = availableSpaceBelow < submenuHeight;
+
+                      setSubMenuDirection(openUpwards ? "up" : "down");
+                      setOpenSub(category);
+                    }}
                     onMouseLeave={() => setOpenSub(null)}
                   >
                     {category}
                     {openSub === category && (
-                      <div style={styles.subMenu}>
+                      <div
+                        style={{
+                          ...styles.subMenu,
+                          [submenuPosition]: "100%",
+                          left: submenuPosition === "right" ? "100%" : "auto",
+                          right: submenuPosition === "left" ? "100%" : "auto",
+                          top: subMenuDirection === "down" ? 0 : "auto",
+                          bottom: subMenuDirection === "up" ? 0 : "auto",
+                        }}
+                      >
                         {attackCategories[category].map((attack) => (
                           <div
                             key={attack}
@@ -136,8 +182,17 @@ export default function Home() {
           </div>
         </div>
 
-        <button onClick={handleSubmit} style={styles.button}>
-          Send
+        <button
+          onClick={handleSubmit}
+          disabled={loading}
+          style={{
+            ...styles.button,
+            background: loading ? "#94a3b8" : "#2563eb",
+            cursor: loading ? "not-allowed" : "pointer",
+            opacity: loading ? 0.7 : 1,
+          }}
+        >
+          {loading ? "Sending..." : "Send"}
         </button>
 
         {status && (
@@ -231,6 +286,9 @@ const styles: Record<string, React.CSSProperties> = {
     border: "1px solid #ccc",
     borderRadius: "5px",
     boxShadow: "0 4px 8px rgba(0,0,0,0.1)",
+    maxHeight: "250px",
+    overflowY: "auto",
+    zIndex: 20,
   },
   subItem: {
     padding: "10px",
